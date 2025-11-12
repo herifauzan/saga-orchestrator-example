@@ -1,0 +1,20 @@
+1. Test Success
+curl -X POST http://localhost:3000/orders \
+  -H "Content-Type: application/json" \
+  -d '{"orderId":"o-1","userId":"u-1","items":[{"sku":"sku-1","qty":1}],"amount":100}'
+
+curl http://localhost:3000/orders/o-1
+# status should end up: COMPLETED
+
+2. Test Payment Failure
+curl -X POST http://localhost:3000/orders \
+  -H "Content-Type: application/json" \
+  -d '{"orderId":"o-fail-2","userId":"u-2","items":[{"sku":"sku-1","qty":1}],"amount":100}'
+
+curl http://localhost:3000/orders/o-fail-2
+# status should end up: CANCELLED (payment failed, inventory released)
+
+3. Test Inventory Failure
+curl -X POST http://localhost:3000/orders \
+  -H "Content-Type: application/json" \
+  -d '{"orderId":"o-fail-3","userId":"u-3","items":[{"sku":"sku-1","qty":1}],"amount":100}'

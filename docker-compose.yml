@@ -1,0 +1,115 @@
+
+version: "3.9"
+
+services:
+  # Zookeeper
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.7.0
+    container_name: zookeeper
+    ports:
+      - "2181:2181"
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    healthcheck:
+      test: ["CMD-SHELL", "nc -z localhost 2181 || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: on-failure
+
+  # Kafka broker
+  kafka:
+    image: confluentinc/cp-kafka:7.7.0
+    container_name: kafka
+    depends_on:
+      - zookeeper
+    ports:
+      - "9092:9092"
+      - "29092:29092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: "zookeeper:2181"
+      KAFKA_LISTENERS: "PLAINTEXT://0.0.0.0:9092,PLAINTEXT_HOST://0.0.0.0:29092"
+      KAFKA_ADVERTISED_LISTENERS: "PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:29092"
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: "PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT"
+      KAFKA_INTER_BROKER_LISTENER_NAME: "PLAINTEXT"
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+      KAFKA_CONFLUENT_SUPPORT_METRICS_ENABLE: "false"
+    healthcheck:
+      test: ["CMD-SHELL", "nc -z localhost 9092 || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: on-failure
+
+  # Kafka UI (provectus)
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    container_name: kafka-ui
+    ports:
+      - "8080:8080"
+    environment:
+      KAFKA_CLUSTERS_0_NAME: local
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9092
+    depends_on:
+      kafka:
+        condition: service_healthy
+    restart: on-failure
+
+  orchestrator-service:
+    build: ./orchestrator-service
+    container_name: orchestrator-service
+    environment:
+      - KAFKA_BROKERS=kafka:9092
+      - PORT=4000
+    ports:
+      - "4000:4000"
+    depends_on:
+      kafka:
+        condition: service_healthy
+
+  order-service:
+    build: ./order-service
+    container_name: order-service
+    environment:
+      - ORCH_URL=http://orchestrator-service:4000
+      - PORT=3000
+    ports:
+      - "3000:3000"
+    depends_on:
+      - orchestrator-service
+
+  inventory-service:
+    build: ./inventory-service
+    container_name: inventory-service
+    environment:
+      - KAFKA_BROKERS=kafka:9092
+      - KAFKAJS_NO_PARTITIONER_WARNING=1
+    depends_on:
+      - kafka
+
+  payment-service:
+    build: ./payment-service
+    container_name: payment-service
+    environment:
+      - KAFKA_BROKERS=kafka:9092
+      - KAFKAJS_NO_PARTITIONER_WARNING=1
+    depends_on:
+      - kafka
+
+  shipping-service:
+    build: ./shipping-service
+    container_name: shipping-service
+    environment:
+      - KAFKA_BROKERS=kafka:9092
+      - KAFKAJS_NO_PARTITIONER_WARNING=1
+    depends_on:
+      - kafka
+
+networks:
+  default:
+    name: kafka_saga_network
