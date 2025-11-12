@@ -1,4 +1,4 @@
-#🧩 Microservices Architecture — Kafka Saga Orchestrator Pattern
+## 🧩 Microservices Architecture — Kafka Saga Orchestrator Pattern
 ## Overview
 
 This project demonstrates a microservices-based architecture implementing the Saga pattern (Orchestrator variant) using Kafka as the event broker.
